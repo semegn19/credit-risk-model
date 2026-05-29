@@ -1,4 +1,4 @@
-# README.md
+# Credit Risk Model
 
 ## Credit Scoring Business Understanding
 
