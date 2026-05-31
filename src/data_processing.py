@@ -6,16 +6,14 @@ from sklearn.pipeline import Pipeline
 from sklearn.compose import ColumnTransformer
 from sklearn.impute import SimpleImputer
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
+from sklearn.cluster import KMeans
 
 
 # ============================================================
-# AGGREGATE CUSTOMER FEATURES
+# TASK 3 COMPONENTS
 # ============================================================
 
 class AggregateFeatures(BaseEstimator, TransformerMixin):
-    """
-    Create customer-level aggregate transaction features.
-    """
 
     def __init__(self, customer_col="CustomerId"):
         self.customer_col = customer_col
@@ -41,22 +39,18 @@ class AggregateFeatures(BaseEstimator, TransformerMixin):
         )
 
         customer_agg["Std_Transaction_Amount"] = (
-            customer_agg["Std_Transaction_Amount"].fillna(0)
+            customer_agg["Std_Transaction_Amount"]
+            .fillna(0)
         )
 
-        df = df.merge(customer_agg, on=self.customer_col, how="left")
+        return df.merge(
+            customer_agg,
+            on=self.customer_col,
+            how="left"
+        )
 
-        return df
-
-
-# ============================================================
-# DATETIME FEATURES
-# ============================================================
 
 class DateFeatureExtractor(BaseEstimator, TransformerMixin):
-    """
-    Extract datetime-related features.
-    """
 
     def __init__(self, datetime_col="TransactionStartTime"):
         self.datetime_col = datetime_col
@@ -86,10 +80,6 @@ class DateFeatureExtractor(BaseEstimator, TransformerMixin):
         return df
 
 
-# ============================================================
-# COLUMN DROPPER
-# ============================================================
-
 class ColumnDropper(BaseEstimator, TransformerMixin):
 
     def __init__(self, columns):
@@ -102,14 +92,7 @@ class ColumnDropper(BaseEstimator, TransformerMixin):
         return X.drop(columns=self.columns, errors="ignore")
 
 
-# ============================================================
-# DATAFRAME OUTPUT WRAPPER
-# ============================================================
-
 class DataFrameTransformer(BaseEstimator, TransformerMixin):
-    """
-    Convert ColumnTransformer output back into DataFrame.
-    """
 
     def __init__(self, preprocessor):
         self.preprocessor = preprocessor
@@ -119,19 +102,20 @@ class DataFrameTransformer(BaseEstimator, TransformerMixin):
         return self
 
     def transform(self, X):
+
         transformed = self.preprocessor.transform(X)
 
-        feature_names = self.preprocessor.get_feature_names_out()
+        columns = self.preprocessor.get_feature_names_out()
 
         return pd.DataFrame(
             transformed,
-            columns=feature_names,
+            columns=columns,
             index=X.index
         )
 
 
 # ============================================================
-# BUILD PIPELINE
+# BUILD TASK 3 PIPELINE
 # ============================================================
 
 def build_pipeline(df):
@@ -144,19 +128,26 @@ def build_pipeline(df):
         "BatchId",
         "AccountId",
         "SubscriptionId",
-        "CustomerId",
         "TransactionStartTime"
+        # CustomerId intentionally retained
     ]
 
     temp_df = temp_df.drop(columns=columns_to_drop)
 
-    categorical_features = temp_df.select_dtypes(
-        include=["object"]
-    ).columns.tolist()
+    categorical_features = (
+        temp_df.select_dtypes(include=["object"])
+        .columns
+        .tolist()
+    )
 
-    numerical_features = temp_df.select_dtypes(
-        include=["int64", "float64"]
-    ).columns.tolist()
+    numerical_features = (
+        temp_df.select_dtypes(include=["int64", "float64"])
+        .columns
+        .tolist()
+    )
+
+    # Remove CustomerId from encoding
+    categorical_features.remove("CustomerId")
 
     numeric_pipeline = Pipeline([
         ("imputer", SimpleImputer(strategy="median")),
@@ -179,7 +170,7 @@ def build_pipeline(df):
         ("cat", categorical_pipeline, categorical_features)
     ])
 
-    full_pipeline = Pipeline([
+    pipeline = Pipeline([
         ("aggregate_features", AggregateFeatures()),
         ("date_features", DateFeatureExtractor()),
         (
@@ -192,7 +183,103 @@ def build_pipeline(df):
         )
     ])
 
-    return full_pipeline
+    return pipeline
+
+
+# ============================================================
+# TASK 4 - RFM CALCULATION
+# ============================================================
+
+def calculate_rfm(df):
+
+    df = df.copy()
+
+    df["TransactionStartTime"] = pd.to_datetime(
+        df["TransactionStartTime"],
+        utc=True
+    )
+
+    snapshot_date = (
+        df["TransactionStartTime"].max()
+        + pd.Timedelta(days=1)
+    )
+
+    rfm = (
+        df.groupby("CustomerId")
+        .agg(
+            Recency=(
+                "TransactionStartTime",
+                lambda x: (
+                    snapshot_date - x.max()
+                ).days
+            ),
+            Frequency=("TransactionId", "count"),
+            Monetary=("Value", "sum")
+        )
+        .reset_index()
+    )
+
+    return rfm
+
+
+# ============================================================
+# TASK 4 - CLUSTER CUSTOMERS
+# ============================================================
+
+def cluster_customers(rfm):
+
+    scaler = StandardScaler()
+
+    rfm_scaled = scaler.fit_transform(
+        rfm[["Recency", "Frequency", "Monetary"]]
+    )
+
+    kmeans = KMeans(
+        n_clusters=3,
+        random_state=42,
+        n_init=10
+    )
+
+    rfm["Cluster"] = kmeans.fit_predict(rfm_scaled)
+
+    return rfm
+
+
+# ============================================================
+# TASK 4 - IDENTIFY HIGH RISK CLUSTER
+# ============================================================
+
+def assign_high_risk_label(rfm):
+
+    cluster_summary = (
+        rfm.groupby("Cluster")
+        .agg({
+            "Recency": "mean",
+            "Frequency": "mean",
+            "Monetary": "mean"
+        })
+    )
+
+    print("\nCluster Summary")
+    print(cluster_summary)
+
+    cluster_summary["risk_score"] = (
+    cluster_summary["Recency"].rank(ascending=False)
+    + cluster_summary["Frequency"].rank(ascending=True)
+    + cluster_summary["Monetary"].rank(ascending=True)
+)
+
+    high_risk_cluster = cluster_summary["risk_score"].idxmax()
+
+    rfm["is_high_risk"] = (
+        rfm["Cluster"] == high_risk_cluster
+    ).astype(int)
+
+    print(
+        f"\nHigh Risk Cluster: {high_risk_cluster}"
+    )
+
+    return rfm
 
 
 # ============================================================
@@ -201,23 +288,69 @@ def build_pipeline(df):
 
 if __name__ == "__main__":
 
-    # Load raw transaction data
-    df = pd.read_csv("C:/Users/hp/credit-risk-model/data/raw/data.csv")
+    # --------------------------------------------------------
+    # Load raw data
+    # --------------------------------------------------------
 
+    df = pd.read_csv(
+        "C:/Users/hp/credit-risk-model/data/raw/data.csv"
+    )
 
-    # Build pipeline
+    # --------------------------------------------------------
+    # Task 3 processing
+    # --------------------------------------------------------
+
     pipeline = build_pipeline(df)
 
-    # Fit and transform
     processed_df = pipeline.fit_transform(df)
 
-    print("Pipeline completed successfully.")
-    print(f"Processed shape: {processed_df.shape}")
+    # Keep CustomerId for merge
+    processed_df["CustomerId"] = df["CustomerId"].values
 
-    # Save processed dataset
+    # --------------------------------------------------------
+    # Task 4 target engineering
+    # --------------------------------------------------------
+
+    rfm = calculate_rfm(df)
+
+    rfm = cluster_customers(rfm)
+
+    rfm = assign_high_risk_label(rfm)
+
+    # --------------------------------------------------------
+    # Merge target back
+    # --------------------------------------------------------
+
+    processed_df = processed_df.merge(
+        rfm[["CustomerId", "is_high_risk"]],
+        on="CustomerId",
+        how="left"
+    )
+
+    # Remove CustomerId before modeling
+    processed_df = processed_df.drop(
+        columns=["CustomerId"]
+    )
+
+    # --------------------------------------------------------
+    # Save final dataset
+    # --------------------------------------------------------
+
     processed_df.to_csv(
-        "C:/Users/hp/credit-risk-model/data/processed/processed_data.csv",
+        "C:/Users/hp/credit-risk-model/data/processed/processed_data_with_target.csv",
         index=False
     )
 
-    print("Processed dataset saved.")
+    print(
+        "\nFinal dataset shape:",
+        processed_df.shape
+    )
+
+    print(
+        "\nTarget distribution:"
+    )
+
+    print(
+        processed_df["is_high_risk"]
+        .value_counts(normalize=True)
+    )
