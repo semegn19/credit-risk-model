@@ -22,10 +22,9 @@ class AggregateFeatures(BaseEstimator, TransformerMixin):
         return self
 
     def transform(self, X):
-        df = X.copy()
 
-        customer_agg = (
-            df.groupby(self.customer_col)
+        customer_df = (
+            X.groupby(self.customer_col)
             .agg(
                 Total_Transaction_Amount=("Amount", "sum"),
                 Average_Transaction_Amount=("Amount", "mean"),
@@ -33,21 +32,23 @@ class AggregateFeatures(BaseEstimator, TransformerMixin):
                 Std_Transaction_Amount=("Amount", "std"),
                 Max_Transaction_Amount=("Amount", "max"),
                 Min_Transaction_Amount=("Amount", "min"),
-                Total_Transaction_Value=("Value", "sum")
+                Total_Transaction_Value=("Value", "sum"),
+                CountryCode=("CountryCode", "first"),
+                CurrencyCode=("CurrencyCode", "first"),
+                ProviderId=("ProviderId", "first"),
+                ProductCategory=("ProductCategory", "first"),
+                ChannelId=("ChannelId", "first"),
+                PricingStrategy=("PricingStrategy", "first")
             )
             .reset_index()
         )
 
-        customer_agg["Std_Transaction_Amount"] = (
-            customer_agg["Std_Transaction_Amount"]
+        customer_df["Std_Transaction_Amount"] = (
+            customer_df["Std_Transaction_Amount"]
             .fillna(0)
         )
 
-        return df.merge(
-            customer_agg,
-            on=self.customer_col,
-            how="left"
-        )
+        return customer_df
 
 
 class DateFeatureExtractor(BaseEstimator, TransformerMixin):
@@ -121,18 +122,6 @@ class DataFrameTransformer(BaseEstimator, TransformerMixin):
 def build_pipeline(df):
 
     temp_df = AggregateFeatures().fit_transform(df)
-    temp_df = DateFeatureExtractor().fit_transform(temp_df)
-
-    columns_to_drop = [
-        "TransactionId",
-        "BatchId",
-        "AccountId",
-        "SubscriptionId",
-        "TransactionStartTime"
-        # CustomerId intentionally retained
-    ]
-
-    temp_df = temp_df.drop(columns=columns_to_drop)
 
     categorical_features = (
         temp_df.select_dtypes(include=["object"])
@@ -146,8 +135,8 @@ def build_pipeline(df):
         .tolist()
     )
 
-    # Remove CustomerId from encoding
-    categorical_features.remove("CustomerId")
+    if "CustomerId" in categorical_features:
+        categorical_features.remove("CustomerId")
 
     numeric_pipeline = Pipeline([
         ("imputer", SimpleImputer(strategy="median")),
@@ -172,15 +161,7 @@ def build_pipeline(df):
 
     pipeline = Pipeline([
         ("aggregate_features", AggregateFeatures()),
-        ("date_features", DateFeatureExtractor()),
-        (
-            "drop_columns",
-            ColumnDropper(columns_to_drop)
-        ),
-        (
-            "preprocessor",
-            DataFrameTransformer(preprocessor)
-        )
+        ("preprocessor", DataFrameTransformer(preprocessor))
     ])
 
     return pipeline
@@ -230,8 +211,20 @@ def cluster_customers(rfm):
 
     scaler = StandardScaler()
 
+    rfm_features = rfm.copy()
+
+    rfm_features["Frequency"] = np.log1p(
+        rfm_features["Frequency"]
+    )
+
+    rfm_features["Monetary"] = np.log1p(
+        rfm_features["Monetary"]
+    )
+
     rfm_scaled = scaler.fit_transform(
-        rfm[["Recency", "Frequency", "Monetary"]]
+        rfm_features[
+            ["Recency", "Frequency", "Monetary"]
+        ]
     )
 
     kmeans = KMeans(
@@ -253,31 +246,40 @@ def assign_high_risk_label(rfm):
 
     cluster_summary = (
         rfm.groupby("Cluster")
-        .agg({
-            "Recency": "mean",
-            "Frequency": "mean",
-            "Monetary": "mean"
-        })
+        .agg(
+            Recency=("Recency", "mean"),
+            Frequency=("Frequency", "mean"),
+            Monetary=("Monetary", "mean")
+        )
     )
 
     print("\nCluster Summary")
     print(cluster_summary)
 
-    cluster_summary["risk_score"] = (
-    cluster_summary["Recency"].rank(ascending=False)
-    + cluster_summary["Frequency"].rank(ascending=True)
-    + cluster_summary["Monetary"].rank(ascending=True)
-)
+    # Low frequency + low monetary customers
+    cluster_summary["engagement_score"] = (
+        cluster_summary["Frequency"]
+        + cluster_summary["Monetary"]
+    )
 
-    high_risk_cluster = cluster_summary["risk_score"].idxmax()
+    high_risk_cluster = (
+        cluster_summary["engagement_score"]
+        .idxmin()
+    )
+
+    print(
+        f"\nHigh Risk Cluster: {high_risk_cluster}"
+    )
 
     rfm["is_high_risk"] = (
         rfm["Cluster"] == high_risk_cluster
     ).astype(int)
 
-    print(
-        f"\nHigh Risk Cluster: {high_risk_cluster}"
-    )
+    print("\nCluster Counts")
+    print(rfm["Cluster"].value_counts())
+
+    print("\nTarget Counts")
+    print(rfm["is_high_risk"].value_counts())
 
     return rfm
 
@@ -304,8 +306,12 @@ if __name__ == "__main__":
 
     processed_df = pipeline.fit_transform(df)
 
-    # Keep CustomerId for merge
-    processed_df["CustomerId"] = df["CustomerId"].values
+    customer_ids = (
+        AggregateFeatures()
+        .fit_transform(df)["CustomerId"]
+    )
+
+    processed_df["CustomerId"] = customer_ids.values
 
     # --------------------------------------------------------
     # Task 4 target engineering
@@ -335,10 +341,62 @@ if __name__ == "__main__":
     # --------------------------------------------------------
     # Save final dataset
     # --------------------------------------------------------
+    print("\n========================")
+    print("FINAL DATASET CHECK")
+    print("========================")
 
+    print("Shape:", processed_df.shape)
+
+    print(
+        "Duplicate Rows:",
+        processed_df.duplicated().sum()
+    )
+
+    print(
+        "\nMissing Values:",
+        processed_df.isna().sum().sum()
+    )
+
+    print(
+        "\nTarget Distribution:"
+    )
+
+    print(
+        processed_df["is_high_risk"]
+        .value_counts(normalize=True)
+    )
+    processed_df = processed_df.drop_duplicates()
+
+    print(
+        "\nRows After Duplicate Removal:",
+        len(processed_df)
+    )
     processed_df.to_csv(
         "C:/Users/hp/credit-risk-model/data/processed/processed_data_with_target.csv",
         index=False
+    )
+    print("\n========================")
+    print("FINAL DATASET CHECK")
+    print("========================")
+
+    print("Shape:", processed_df.shape)
+
+    print(
+        "\nDuplicate Rows:",
+        processed_df.duplicated().sum()
+    )
+
+    print(
+        "\nUnique Targets:"
+    )
+    print(
+        processed_df["is_high_risk"]
+        .value_counts()
+    )
+
+    print(
+        "\nMissing Values:",
+        processed_df.isna().sum().sum()
     )
 
     print(
