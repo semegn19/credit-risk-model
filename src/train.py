@@ -5,14 +5,9 @@ import pandas as pd
 import mlflow
 import mlflow.sklearn
 
-from sklearn.model_selection import (
-    train_test_split,
-    GridSearchCV
-)
-
+from sklearn.model_selection import train_test_split, GridSearchCV
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
-
 from sklearn.metrics import (
     accuracy_score,
     precision_score,
@@ -20,6 +15,7 @@ from sklearn.metrics import (
     f1_score,
     roc_auc_score
 )
+
 
 # =====================================================
 # HELPER FUNCTIONS
@@ -39,25 +35,10 @@ def evaluate_model(model, X_test, y_test):
 
     return {
         "accuracy": accuracy_score(y_test, predictions),
-        "precision": precision_score(
-            y_test,
-            predictions,
-            zero_division=0
-        ),
-        "recall": recall_score(
-            y_test,
-            predictions,
-            zero_division=0
-        ),
-        "f1_score": f1_score(
-            y_test,
-            predictions,
-            zero_division=0
-        ),
-        "roc_auc": roc_auc_score(
-            y_test,
-            probabilities
-        )
+        "precision": precision_score(y_test, predictions, zero_division=0),
+        "recall": recall_score(y_test, predictions, zero_division=0),
+        "f1_score": f1_score(y_test, predictions, zero_division=0),
+        "roc_auc": roc_auc_score(y_test, probabilities)
     }
 
 
@@ -89,23 +70,15 @@ if __name__ == "__main__":
     print("\nDataset Loaded")
     print("Shape:", df.shape)
 
-    memory_usage = (
-        df.memory_usage(deep=True).sum() / 1024**2
-    )
-
-    print(
-        f"Memory Usage: {memory_usage:.2f} MB"
-    )
+    memory_usage = df.memory_usage(deep=True).sum() / 1024**2
+    print(f"Memory Usage: {memory_usage:.2f} MB")
 
     # =================================================
     # FEATURES AND TARGET
     # =================================================
 
     TARGET_COLUMN = "is_high_risk"
-
-    DROP_COLS = [
-        TARGET_COLUMN
-    ]
+    DROP_COLS = [TARGET_COLUMN]
 
     if "num__FraudResult" in df.columns:
         DROP_COLS.append("num__FraudResult")
@@ -125,7 +98,6 @@ if __name__ == "__main__":
     print("LEAKAGE DIAGNOSTICS")
     print("================================")
 
-    # Check for suspicious columns
     suspicious_cols = [
         "Recency",
         "Frequency",
@@ -135,17 +107,12 @@ if __name__ == "__main__":
         "num__FraudResult"
     ]
 
-    found_cols = [
-        col for col in suspicious_cols
-        if col in df.columns
-    ]
+    found_cols = [col for col in suspicious_cols if col in df.columns]
 
     print("\nSuspicious Columns Found:")
     print(found_cols if found_cols else "None")
 
-    # Check target correlation
     if "num__FraudResult" in df.columns:
-
         print("\nFraudResult vs is_high_risk")
 
         fraud_crosstab = pd.crosstab(
@@ -156,36 +123,23 @@ if __name__ == "__main__":
 
         print(fraud_crosstab)
 
-    # Check duplicate rows
     duplicates = df.duplicated().sum()
-
     print(f"\nDuplicate Rows: {duplicates}")
 
-    # Check if any feature is perfectly correlated
-    numeric_cols = df.select_dtypes(
-        include=["int64", "float64"]
-    ).columns
+    numeric_cols = df.select_dtypes(include=["int64", "float64"]).columns
 
     target_corr = (
         df[numeric_cols]
         .corr()["is_high_risk"]
-        .sort_values(
-            key=abs,
-            ascending=False
-        )
+        .sort_values(key=abs, ascending=False)
     )
 
     print("\nTop Correlations with Target:")
     print(target_corr.head(15))
 
-    # Check class balance
     print("\nTarget Percentage:")
     print(
-        (
-            df["is_high_risk"]
-            .value_counts(normalize=True)
-            * 100
-        ).round(2)
+        (df["is_high_risk"].value_counts(normalize=True) * 100).round(2)
     )
 
     print("\n================================\n")
@@ -195,15 +149,8 @@ if __name__ == "__main__":
     # =================================================
 
     X_train, X_test, y_train, y_test = train_test_split(
-        X,
-        y,
-        test_size=0.20,
-        random_state=42,
-        stratify=y
+        X, y, test_size=0.20, random_state=42, stratify=y
     )
-    # =================================================
-    # TRAIN/TEST LEAKAGE CHECK
-    # =================================================
 
     print("\n================================")
     print("TRAIN TEST DIAGNOSTICS")
@@ -218,27 +165,12 @@ if __name__ == "__main__":
     print("\nTest Target Distribution:")
     print(y_test.value_counts(normalize=True))
 
-    # Look for identical rows between train and test
-    train_hashes = pd.util.hash_pandas_object(
-        X_train,
-        index=False
-    )
+    train_hashes = pd.util.hash_pandas_object(X_train, index=False)
+    test_hashes = pd.util.hash_pandas_object(X_test, index=False)
 
-    test_hashes = pd.util.hash_pandas_object(
-        X_test,
-        index=False
-    )
+    overlap = len(set(train_hashes).intersection(set(test_hashes)))
 
-    overlap = len(
-        set(train_hashes).intersection(
-            set(test_hashes)
-        )
-    )
-
-    print(
-        f"\nIdentical Feature Rows Appearing "
-        f"in Both Train and Test: {overlap}"
-    )
+    print(f"\nIdentical Feature Rows Appearing in Both Train and Test: {overlap}")
 
     print("\n================================\n")
 
@@ -246,13 +178,8 @@ if __name__ == "__main__":
     # MLFLOW SETUP
     # =================================================
 
-    mlflow.set_tracking_uri(
-        "sqlite:///mlflow.db"
-    )
-
-    mlflow.set_experiment(
-        "credit-risk-model"
-    )
+    mlflow.set_tracking_uri("sqlite:///mlflow.db")
+    mlflow.set_experiment("credit-risk-model")
 
     best_overall_auc = -1
     best_model_name = None
@@ -261,13 +188,9 @@ if __name__ == "__main__":
     # LOGISTIC REGRESSION
     # =================================================
 
-    with mlflow.start_run(
-        run_name="LogisticRegression"
-    ):
+    with mlflow.start_run(run_name="LogisticRegression"):
 
-        print(
-            "\nTraining Logistic Regression..."
-        )
+        print("\nTraining Logistic Regression...")
 
         logistic = LogisticRegression(
             max_iter=1000,
@@ -275,50 +198,31 @@ if __name__ == "__main__":
             random_state=42
         )
 
-        param_grid = {
-            "C": [0.1, 1, 10]
-        }
-
         grid_search = GridSearchCV(
-            estimator=logistic,
-            param_grid=param_grid,
+            logistic,
+            param_grid={"C": [0.1, 1, 10]},
             scoring="roc_auc",
             cv=3,
             n_jobs=1,
             verbose=1
         )
 
-        grid_search.fit(
-            X_train,
-            y_train
-        )
+        grid_search.fit(X_train, y_train)
 
-        best_model = (
-            grid_search.best_estimator_
-        )
+        best_model = grid_search.best_estimator_
 
-        metrics = evaluate_model(
-            best_model,
-            X_test,
-            y_test
-        )
+        metrics = evaluate_model(best_model, X_test, y_test)
 
-        mlflow.log_params(
-            grid_search.best_params_
-        )
-
+        mlflow.log_params(grid_search.best_params_)
         log_metrics(metrics)
 
         mlflow.sklearn.log_model(
-        sk_model=best_model,
-        artifact_path="model",
-        registered_model_name="CreditRiskModel"
+            sk_model=best_model,
+            artifact_path="model",
+            registered_model_name="CreditRiskModel"
         )
 
-        print(
-            "\nLogistic Regression Results:"
-        )
-
+        print("\nLogistic Regression Results:")
         for k, v in metrics.items():
             print(f"{k}: {v:.4f}")
 
@@ -330,64 +234,40 @@ if __name__ == "__main__":
     # RANDOM FOREST
     # =================================================
 
-    with mlflow.start_run(
-        run_name="RandomForest"
-    ):
+    with mlflow.start_run(run_name="RandomForest"):
 
-        print(
-            "\nTraining Random Forest..."
-        )
+        print("\nTraining Random Forest...")
 
         rf = RandomForestClassifier(
             random_state=42,
             class_weight="balanced"
         )
 
-        param_grid = {
-            "n_estimators": [100],
-            "max_depth": [5, 10]
-        }
-
         grid_search = GridSearchCV(
-            estimator=rf,
-            param_grid=param_grid,
+            rf,
+            param_grid={"n_estimators": [100], "max_depth": [5, 10]},
             scoring="roc_auc",
             cv=3,
             n_jobs=1,
             verbose=1
         )
 
-        grid_search.fit(
-            X_train,
-            y_train
-        )
+        grid_search.fit(X_train, y_train)
 
-        best_model = (
-            grid_search.best_estimator_
-        )
+        best_model = grid_search.best_estimator_
 
-        metrics = evaluate_model(
-            best_model,
-            X_test,
-            y_test
-        )
+        metrics = evaluate_model(best_model, X_test, y_test)
 
-        mlflow.log_params(
-            grid_search.best_params_
-        )
-
+        mlflow.log_params(grid_search.best_params_)
         log_metrics(metrics)
 
         mlflow.sklearn.log_model(
-        sk_model=best_model,
-        artifact_path="model",
-        registered_model_name="CreditRiskModel"
+            sk_model=best_model,
+            artifact_path="model",
+            registered_model_name="CreditRiskModel"
         )
 
-        print(
-            "\nRandom Forest Results:"
-        )
-
+        print("\nRandom Forest Results:")
         for k, v in metrics.items():
             print(f"{k}: {v:.4f}")
 
@@ -402,9 +282,7 @@ if __name__ == "__main__":
     print("\n================================")
     print("TRAINING COMPLETE")
     print("================================")
-    print(
-        f"Best Model: {best_model_name}"
-    )
-    print(
-        f"Best ROC-AUC: {best_overall_auc:.4f}"
-    )
+
+    print(f"Best Model: {best_model_name}")
+    print(f"Best ROC-AUC: {best_overall_auc:.4f}")
+    

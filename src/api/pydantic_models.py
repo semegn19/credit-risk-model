@@ -1,5 +1,6 @@
 from pydantic import BaseModel
 
+
 class PredictionInput(BaseModel):
 
     # =========================
@@ -45,5 +46,6 @@ class PredictionInput(BaseModel):
 
 
 class PredictionOutput(BaseModel):
+
     risk_probability: float
     risk_label: int

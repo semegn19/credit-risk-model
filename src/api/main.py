@@ -4,6 +4,7 @@ import pandas as pd
 
 from src.api.pydantic_models import PredictionInput, PredictionOutput
 
+
 # =====================================================
 # LOAD MODEL FROM MLFLOW REGISTRY
 # =====================================================
@@ -15,6 +16,7 @@ model = mlflow.pyfunc.load_model(
     f"models:/{MODEL_NAME}/{MODEL_STAGE}"
 )
 
+
 # =====================================================
 # INIT FASTAPI
 # =====================================================
@@ -23,6 +25,7 @@ app = FastAPI(
     title="Credit Risk API",
     version="1.0"
 )
+
 
 # =====================================================
 # PREDICT ENDPOINT

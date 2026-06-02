@@ -44,8 +44,7 @@ class AggregateFeatures(BaseEstimator, TransformerMixin):
         )
 
         customer_df["Std_Transaction_Amount"] = (
-            customer_df["Std_Transaction_Amount"]
-            .fillna(0)
+            customer_df["Std_Transaction_Amount"].fillna(0)
         )
 
         return customer_df
@@ -60,6 +59,7 @@ class DateFeatureExtractor(BaseEstimator, TransformerMixin):
         return self
 
     def transform(self, X):
+
         df = X.copy()
 
         df[self.datetime_col] = pd.to_datetime(
@@ -105,7 +105,6 @@ class DataFrameTransformer(BaseEstimator, TransformerMixin):
     def transform(self, X):
 
         transformed = self.preprocessor.transform(X)
-
         columns = self.preprocessor.get_feature_names_out()
 
         return pd.DataFrame(
@@ -145,13 +144,8 @@ def build_pipeline(df):
 
     categorical_pipeline = Pipeline([
         ("imputer", SimpleImputer(strategy="most_frequent")),
-        (
-            "encoder",
-            OneHotEncoder(
-                handle_unknown="ignore",
-                sparse_output=False
-            )
-        )
+        ("encoder", OneHotEncoder(handle_unknown="ignore",
+                                  sparse_output=False))
     ])
 
     preprocessor = ColumnTransformer([
@@ -190,9 +184,7 @@ def calculate_rfm(df):
         .agg(
             Recency=(
                 "TransactionStartTime",
-                lambda x: (
-                    snapshot_date - x.max()
-                ).days
+                lambda x: (snapshot_date - x.max()).days
             ),
             Frequency=("TransactionId", "count"),
             Monetary=("Value", "sum")
@@ -213,18 +205,11 @@ def cluster_customers(rfm):
 
     rfm_features = rfm.copy()
 
-    rfm_features["Frequency"] = np.log1p(
-        rfm_features["Frequency"]
-    )
-
-    rfm_features["Monetary"] = np.log1p(
-        rfm_features["Monetary"]
-    )
+    rfm_features["Frequency"] = np.log1p(rfm_features["Frequency"])
+    rfm_features["Monetary"] = np.log1p(rfm_features["Monetary"])
 
     rfm_scaled = scaler.fit_transform(
-        rfm_features[
-            ["Recency", "Frequency", "Monetary"]
-        ]
+        rfm_features[["Recency", "Frequency", "Monetary"]]
     )
 
     kmeans = KMeans(
@@ -256,20 +241,14 @@ def assign_high_risk_label(rfm):
     print("\nCluster Summary")
     print(cluster_summary)
 
-    # Low frequency + low monetary customers
     cluster_summary["engagement_score"] = (
         cluster_summary["Frequency"]
         + cluster_summary["Monetary"]
     )
 
-    high_risk_cluster = (
-        cluster_summary["engagement_score"]
-        .idxmin()
-    )
+    high_risk_cluster = cluster_summary["engagement_score"].idxmin()
 
-    print(
-        f"\nHigh Risk Cluster: {high_risk_cluster}"
-    )
+    print(f"\nHigh Risk Cluster: {high_risk_cluster}")
 
     rfm["is_high_risk"] = (
         rfm["Cluster"] == high_risk_cluster
@@ -290,20 +269,11 @@ def assign_high_risk_label(rfm):
 
 if __name__ == "__main__":
 
-    # --------------------------------------------------------
-    # Load raw data
-    # --------------------------------------------------------
-
     df = pd.read_csv(
         "C:/Users/hp/credit-risk-model/data/raw/data.csv"
     )
 
-    # --------------------------------------------------------
-    # Task 3 processing
-    # --------------------------------------------------------
-
     pipeline = build_pipeline(df)
-
     processed_df = pipeline.fit_transform(df)
 
     customer_ids = (
@@ -313,19 +283,9 @@ if __name__ == "__main__":
 
     processed_df["CustomerId"] = customer_ids.values
 
-    # --------------------------------------------------------
-    # Task 4 target engineering
-    # --------------------------------------------------------
-
     rfm = calculate_rfm(df)
-
     rfm = cluster_customers(rfm)
-
     rfm = assign_high_risk_label(rfm)
-
-    # --------------------------------------------------------
-    # Merge target back
-    # --------------------------------------------------------
 
     processed_df = processed_df.merge(
         rfm[["CustomerId", "is_high_risk"]],
@@ -333,82 +293,25 @@ if __name__ == "__main__":
         how="left"
     )
 
-    # Remove CustomerId before modeling
-    processed_df = processed_df.drop(
-        columns=["CustomerId"]
-    )
+    processed_df = processed_df.drop(columns=["CustomerId"])
 
-    # --------------------------------------------------------
-    # Save final dataset
-    # --------------------------------------------------------
     print("\n========================")
     print("FINAL DATASET CHECK")
     print("========================")
 
     print("Shape:", processed_df.shape)
+    print("Duplicate Rows:", processed_df.duplicated().sum())
+    print("\nMissing Values:", processed_df.isna().sum().sum())
 
-    print(
-        "Duplicate Rows:",
-        processed_df.duplicated().sum()
-    )
+    print("\nTarget Distribution:")
+    print(processed_df["is_high_risk"].value_counts(normalize=True))
 
-    print(
-        "\nMissing Values:",
-        processed_df.isna().sum().sum()
-    )
-
-    print(
-        "\nTarget Distribution:"
-    )
-
-    print(
-        processed_df["is_high_risk"]
-        .value_counts(normalize=True)
-    )
     processed_df = processed_df.drop_duplicates()
 
-    print(
-        "\nRows After Duplicate Removal:",
-        len(processed_df)
-    )
     processed_df.to_csv(
-        "C:/Users/hp/credit-risk-model/data/processed/processed_data_with_target.csv",
+        "C:/Users/hp/credit-risk-model/"
+        "data/processed/processed_data_with_target.csv",
         index=False
     )
-    print("\n========================")
-    print("FINAL DATASET CHECK")
-    print("========================")
 
-    print("Shape:", processed_df.shape)
-
-    print(
-        "\nDuplicate Rows:",
-        processed_df.duplicated().sum()
-    )
-
-    print(
-        "\nUnique Targets:"
-    )
-    print(
-        processed_df["is_high_risk"]
-        .value_counts()
-    )
-
-    print(
-        "\nMissing Values:",
-        processed_df.isna().sum().sum()
-    )
-
-    print(
-        "\nFinal dataset shape:",
-        processed_df.shape
-    )
-
-    print(
-        "\nTarget distribution:"
-    )
-
-    print(
-        processed_df["is_high_risk"]
-        .value_counts(normalize=True)
-    )
+    print("\nFinal dataset shape:", processed_df.shape)
