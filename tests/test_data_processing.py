@@ -9,19 +9,19 @@ from src.data_processing import (
 def test_aggregate_features():
 
     df = pd.DataFrame({
-    "CustomerId": ["A", "A", "B"],
-    "Amount": [100, 200, 300],
-    "Value": [100, 200, 300],
-    "TransactionId": [1, 2, 3],
+        "CustomerId": ["A", "A", "B"],
+        "Amount": [100, 200, 300],
+        "Value": [100, 200, 300],
+        "TransactionId": [1, 2, 3],
 
-    # ADD missing expected columns (dummy values)
-    "ChannelId": ["C1", "C1", "C2"],
-    "CountryCode": [256, 256, 256],
-    "CurrencyCode": ["UGX", "UGX", "UGX"],
-    "PricingStrategy": [1, 1, 1],
-    "ProductCategory": ["airtime", "airtime", "data"],
-    "ProviderId": ["P1", "P1", "P2"]
-})
+        # ADD missing expected columns (dummy values)
+        "ChannelId": ["C1", "C1", "C2"],
+        "CountryCode": [256, 256, 256],
+        "CurrencyCode": ["UGX", "UGX", "UGX"],
+        "PricingStrategy": [1, 1, 1],
+        "ProductCategory": ["airtime", "airtime", "data"],
+        "ProviderId": ["P1", "P1", "P2"]
+    })
 
     transformer = AggregateFeatures()
 
