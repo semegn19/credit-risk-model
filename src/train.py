@@ -22,9 +22,6 @@ from sklearn.metrics import (
 # =====================================================
 
 def evaluate_model(model, X_test, y_test):
-    """
-    Calculate evaluation metrics.
-    """
 
     predictions = model.predict(X_test)
 
@@ -43,11 +40,8 @@ def evaluate_model(model, X_test, y_test):
 
 
 def log_metrics(metrics):
-    """
-    Log metrics to MLflow.
-    """
-    for metric_name, metric_value in metrics.items():
-        mlflow.log_metric(metric_name, metric_value)
+    for name, value in metrics.items():
+        mlflow.log_metric(name, value)
 
 
 # =====================================================
@@ -55,10 +49,6 @@ def log_metrics(metrics):
 # =====================================================
 
 if __name__ == "__main__":
-
-    # =================================================
-    # LOAD DATA
-    # =================================================
 
     DATA_PATH = (
         "C:/Users/hp/credit-risk-model/"
@@ -73,10 +63,6 @@ if __name__ == "__main__":
     memory_usage = df.memory_usage(deep=True).sum() / 1024**2
     print(f"Memory Usage: {memory_usage:.2f} MB")
 
-    # =================================================
-    # FEATURES AND TARGET
-    # =================================================
-
     TARGET_COLUMN = "is_high_risk"
     DROP_COLS = [TARGET_COLUMN]
 
@@ -86,17 +72,13 @@ if __name__ == "__main__":
     X = df.drop(columns=DROP_COLS)
     y = df[TARGET_COLUMN]
 
-    print("\nFeature Matrix Shape:", X.shape)
+    print("\nFeature Shape:", X.shape)
     print("\nTarget Distribution:")
     print(y.value_counts())
 
-    # =================================================
+    # =========================
     # LEAKAGE CHECKS
-    # =================================================
-
-    print("\n================================")
-    print("LEAKAGE DIAGNOSTICS")
-    print("================================")
+    # =========================
 
     suspicious_cols = [
         "Recency",
@@ -107,21 +89,9 @@ if __name__ == "__main__":
         "num__FraudResult"
     ]
 
-    found_cols = [col for col in suspicious_cols if col in df.columns]
+    found_cols = [c for c in suspicious_cols if c in df.columns]
 
-    print("\nSuspicious Columns Found:")
-    print(found_cols if found_cols else "None")
-
-    if "num__FraudResult" in df.columns:
-        print("\nFraudResult vs is_high_risk")
-
-        fraud_crosstab = pd.crosstab(
-            df["num__FraudResult"],
-            df["is_high_risk"],
-            normalize="index"
-        )
-
-        print(fraud_crosstab)
+    print("\nSuspicious Columns:", found_cols if found_cols else "None")
 
     duplicates = df.duplicated().sum()
     print(f"\nDuplicate Rows: {duplicates}")
@@ -134,86 +104,63 @@ if __name__ == "__main__":
         .sort_values(key=abs, ascending=False)
     )
 
-    print("\nTop Correlations with Target:")
+    print("\nTop Correlations:")
     print(target_corr.head(15))
 
-    print("\nTarget Percentage:")
-    print(
-        (df["is_high_risk"].value_counts(normalize=True) * 100).round(2)
-    )
+    print("\nTarget %:")
+    print((df["is_high_risk"].value_counts(normalize=True) * 100).round(2))
 
-    print("\n================================\n")
-
-    # =================================================
+    # =========================
     # TRAIN TEST SPLIT
-    # =================================================
+    # =========================
 
     X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.20, random_state=42, stratify=y
+        X, y, test_size=0.2, random_state=42, stratify=y
     )
-
-    print("\n================================")
-    print("TRAIN TEST DIAGNOSTICS")
-    print("================================")
-
-    print("Train Shape:", X_train.shape)
-    print("Test Shape :", X_test.shape)
-
-    print("\nTrain Target Distribution:")
-    print(y_train.value_counts(normalize=True))
-
-    print("\nTest Target Distribution:")
-    print(y_test.value_counts(normalize=True))
 
     train_hashes = pd.util.hash_pandas_object(X_train, index=False)
     test_hashes = pd.util.hash_pandas_object(X_test, index=False)
 
     overlap = len(set(train_hashes).intersection(set(test_hashes)))
 
-    print(f"\nIdentical Feature Rows Appearing in Both Train and Test: {overlap}")
+    print(f"\nTrain-Test Overlap: {overlap}")
 
-    print("\n================================\n")
-
-    # =================================================
-    # MLFLOW SETUP
-    # =================================================
+    # =========================
+    # MLFLOW
+    # =========================
 
     mlflow.set_tracking_uri("sqlite:///mlflow.db")
     mlflow.set_experiment("credit-risk-model")
 
-    best_overall_auc = -1
+    best_auc = -1
     best_model_name = None
 
-    # =================================================
+    # =========================
     # LOGISTIC REGRESSION
-    # =================================================
+    # =========================
 
     with mlflow.start_run(run_name="LogisticRegression"):
 
-        print("\nTraining Logistic Regression...")
-
-        logistic = LogisticRegression(
+        model = LogisticRegression(
             max_iter=1000,
             class_weight="balanced",
             random_state=42
         )
 
-        grid_search = GridSearchCV(
-            logistic,
+        grid = GridSearchCV(
+            model,
             param_grid={"C": [0.1, 1, 10]},
             scoring="roc_auc",
             cv=3,
-            n_jobs=1,
-            verbose=1
+            n_jobs=1
         )
 
-        grid_search.fit(X_train, y_train)
+        grid.fit(X_train, y_train)
 
-        best_model = grid_search.best_estimator_
-
+        best_model = grid.best_estimator_
         metrics = evaluate_model(best_model, X_test, y_test)
 
-        mlflow.log_params(grid_search.best_params_)
+        mlflow.log_params(grid.best_params_)
         log_metrics(metrics)
 
         mlflow.sklearn.log_model(
@@ -222,43 +169,35 @@ if __name__ == "__main__":
             registered_model_name="CreditRiskModel"
         )
 
-        print("\nLogistic Regression Results:")
-        for k, v in metrics.items():
-            print(f"{k}: {v:.4f}")
-
-        if metrics["roc_auc"] > best_overall_auc:
-            best_overall_auc = metrics["roc_auc"]
+        if metrics["roc_auc"] > best_auc:
+            best_auc = metrics["roc_auc"]
             best_model_name = "LogisticRegression"
 
-    # =================================================
+    # =========================
     # RANDOM FOREST
-    # =================================================
+    # =========================
 
     with mlflow.start_run(run_name="RandomForest"):
 
-        print("\nTraining Random Forest...")
-
-        rf = RandomForestClassifier(
+        model = RandomForestClassifier(
             random_state=42,
             class_weight="balanced"
         )
 
-        grid_search = GridSearchCV(
-            rf,
+        grid = GridSearchCV(
+            model,
             param_grid={"n_estimators": [100], "max_depth": [5, 10]},
             scoring="roc_auc",
             cv=3,
-            n_jobs=1,
-            verbose=1
+            n_jobs=1
         )
 
-        grid_search.fit(X_train, y_train)
+        grid.fit(X_train, y_train)
 
-        best_model = grid_search.best_estimator_
-
+        best_model = grid.best_estimator_
         metrics = evaluate_model(best_model, X_test, y_test)
 
-        mlflow.log_params(grid_search.best_params_)
+        mlflow.log_params(grid.best_params_)
         log_metrics(metrics)
 
         mlflow.sklearn.log_model(
@@ -267,22 +206,14 @@ if __name__ == "__main__":
             registered_model_name="CreditRiskModel"
         )
 
-        print("\nRandom Forest Results:")
-        for k, v in metrics.items():
-            print(f"{k}: {v:.4f}")
-
-        if metrics["roc_auc"] > best_overall_auc:
-            best_overall_auc = metrics["roc_auc"]
+        if metrics["roc_auc"] > best_auc:
+            best_auc = metrics["roc_auc"]
             best_model_name = "RandomForest"
 
-    # =================================================
+    # =========================
     # SUMMARY
-    # =================================================
+    # =========================
 
-    print("\n================================")
-    print("TRAINING COMPLETE")
-    print("================================")
-
+    print("\nTraining Complete")
     print(f"Best Model: {best_model_name}")
-    print(f"Best ROC-AUC: {best_overall_auc:.4f}")
-    
+    print(f"Best ROC-AUC: {best_auc:.4f}")
