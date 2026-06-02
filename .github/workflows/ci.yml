@@ -52,5 +52,8 @@ jobs:
       # ======================
       # TEST STEP (FAILS BUILD IF TESTS FAIL)
       # ======================
+      - name: Set PYTHONPATH
+        run: echo "PYTHONPATH=$PWD" >> $GITHUB_ENV
+        
       - name: Run pytest
         run: pytest
