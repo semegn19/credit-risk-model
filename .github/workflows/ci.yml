@@ -1,4 +1,4 @@
-name: Ci
+name: CI
 
 on:
   push:
@@ -11,12 +11,46 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      # ======================
+      # Checkout code
+      # ======================
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
+      # ======================
+      # Setup Python
+      # ======================
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
-      - run: python --version
-      - run: pip install --upgrade pip
-      - run: pip install -r requirements.txt
+      # ======================
+      # Upgrade pip
+      # ======================
+      - name: Upgrade pip
+        run: python -m pip install --upgrade pip
+
+      # ======================
+      # Install dependencies
+      # ======================
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      # ======================
+      # Install CI tools
+      # ======================
+      - name: Install testing tools
+        run: pip install flake8 pytest
+
+      # ======================
+      # LINT STEP (FAILS BUILD IF BAD CODE)
+      # ======================
+      - name: Run flake8 linter
+        run: flake8 src tests
+
+      # ======================
+      # TEST STEP (FAILS BUILD IF TESTS FAIL)
+      # ======================
+      - name: Run pytest
+        run: pytest
