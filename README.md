@@ -1,33 +1,392 @@
-# Credit Risk Model
+# Credit Risk Probability Model using Alternative Data
 
-## Credit Scoring Business Understanding
+[![CI](https://github.com/semegn19/credit-risk-model/actions/workflows/ci.yml/badge.svg)](https://github.com/semegn19/credit-risk-model/actions/workflows/ci.yml)
 
-As Bati Bank moves forward with its Buy-Now-Pay-Later (BNPL) partnership, it is critical to align our technical modeling choices with the regulatory and business landscape of credit risk. This section outlines the conceptual foundation of our approach.
+## Project Overview
 
-### Basel II and the Imperative for Interpretability
-The **Basel II Accord** was designed to establish a regulatory capital framework sensitive to the level of risk banks assume. Under its **Internal Ratings-Based (IRB)** approach, institutions like Bati Bank must generate their own estimates of the **Probability of Default (PD)** and demonstrate their competency to regulators. 
+This project develops an end-to-end credit risk prediction system for **Bati Bank** to support Buy-Now-Pay-Later (BNPL) lending decisions using alternative transaction data provided by Xente. Since traditional credit histories are unavailable for many customers, the project constructs a proxy target using customer transaction behaviour through **Recency, Frequency, and Monetary (RFM)** analysis.
 
-This emphasis on risk measurement creates a direct requirement for **interpretable and well-documented models** because:
-*   **Regulatory Scrutiny:** CSPs (Credit Service Providers) must be able to explain the logic involved in a model's functioning and how credit scoring is incorporated into their business processes to regulatory bodies.
-*   **Model Risk Management:** Regulatory guidance (such as SR 11-7) defines model risk as the potential for adverse consequences from incorrect or misused model outputs. A model that is a "black box" makes it difficult for auditors and supervisors to validate its conceptual soundness or determine potential **cascading risks** within the financial system.
-*   **Consumer Rights:** Regulations like **Equal Credit Opportunity (Regulation B)** require lenders to provide a notice of rejection that explains exactly why an applicant was denied, necessitating a model that can provide a clear rationale behind every risk decision.
+The system includes data preprocessing, feature engineering, proxy target generation, machine learning model training, experiment tracking with MLflow, a REST API built with FastAPI, automated testing, and continuous integration.
 
-### The Necessity and Risks of Proxy-Based Prediction
-In a BNPL context with an eCommerce partner, we often lack a direct historical "default" label for new users. Therefore, a **proxy variable** (surrogate data) is necessary to evaluate the **willingness and ability** of a borrower to repay. For this project, we engineer risk signals from behavioral patterns—specifically **Recency, Frequency, and Monetary (RFM)** patterns—to predict the likelihood of default.
+---
 
-While necessary for financial inclusion, **proxy-based prediction** introduces significant business risks:
-*   **Model Bias and Discrimination:** Machine learning algorithms analyzing alternative data may inadvertently detect and perpetuate historical biases or approximate protected characteristics like race or religion (e.g., through geolocation data), leading to discriminatory lending decisions.
-*   **Data Quality and Variance:** Alternative behavioral data is often unstructured and harder to process than traditional financial data. Poor data quality or high variance can compromise the model's reliability and accuracy.
-*   **Stability Under Stress:** Models trained on behavioral proxies during periods of low economic volatility may not accurately predict behavior during a significant economic downturn or financial crisis.
+# Repository Structure
 
-### Trade-offs: Interpretable vs. High-Performance Models
-Choosing between a simple, interpretable model (e.g., **Logistic Regression**) and a high-performance model (e.g., **Gradient Boosting**) involves navigating a critical trade-off between **predictive power** and **regulatory defensibility**.
+```text
+credit-risk-model
+│
+├── data/
+│   ├── raw/
+│   └── processed/
+│
+├── dashboard/
+│
+├── notebooks/
+│
+├── src/
+│   ├── api/
+│   ├── config/
+│   ├── features/
+│   ├── pipelines/
+│   ├── training/
+│   └── utils/
+│
+├── tests/
+│
+├── .github/
+│   └── workflows/
+│       └── ci.yml
+│
+├── mlruns/
+├── requirements.txt
+└── README.md
+```
 
-| Feature | Simple Model (e.g., Logistic Regression) | High-Performance Model (e.g., Gradient Boosting/XGBoost) |
-| :--- | :--- | :--- |
-| **Interpretability** | High; relationship between features and labels is modeled linearly and is easy to explain to consumers and regulators. | Low; often viewed as opaque "black boxes" that are challenging to interpret, understand, and justify. |
-| **Predictive Power** | Moderate; performs best when data fields are linearly related. | High; generally demonstrates significantly higher accuracy (AUC) and better handles complex, non-linear relationships. |
-| **Model Risk** | Easier to validate, calibrate, and audit for systemic errors. | Prone to **overfitting** and harder to monitor for unintended consequences like algorithmic bias. |
-| **Regulatory Fit** | Highly aligned with Basel II expectations for transparency and the rationale behind credit decisions. | May require additional **model-agnostic interpretability techniques** (e.g., LIME, SHAP) to be permitted in a regulated environment. |
+---
 
-In our regulated context, while Gradient Boosting may offer superior accuracy, its results must be balanced with the **Policy Recommendations** that decisions be explainable and fair. Bati Bank may consider a **champion-challenger approach**, using a traditional model as a baseline while exploring the added value of more complex algorithms under strict governance.
+# Project Workflow
+
+The project follows the complete machine learning lifecycle:
+
+```
+Raw Transaction Data
+        │
+        ▼
+Exploratory Data Analysis
+        │
+        ▼
+Feature Engineering
+        │
+        ▼
+RFM Target Engineering
+        │
+        ▼
+Preprocessing Pipeline
+        │
+        ▼
+Model Training
+        │
+        ▼
+MLflow Experiment Tracking
+        │
+        ▼
+FastAPI Deployment
+        │
+        ▼
+Prediction API
+```
+
+---
+
+# Features
+
+The current implementation includes:
+
+- Exploratory Data Analysis
+- Customer-level feature engineering
+- Temporal feature extraction
+- Automatic preprocessing pipeline
+- RFM-based proxy target engineering
+- Customer clustering using K-Means
+- Logistic Regression model
+- Random Forest model
+- Hyperparameter optimisation using GridSearchCV
+- MLflow experiment tracking
+- MLflow Model Registry
+- FastAPI prediction service
+- Automated unit testing
+- GitHub Actions Continuous Integration
+
+---
+
+# Installation
+
+Clone the repository
+
+```bash
+git clone https://github.com/semegn19/credit-risk-model.git
+
+cd credit-risk-model
+```
+
+Create a virtual environment
+
+```bash
+python -m venv .venv
+```
+
+Windows
+
+```bash
+.venv\Scripts\activate
+```
+
+Linux / macOS
+
+```bash
+source .venv/bin/activate
+```
+
+Install dependencies
+
+```bash
+pip install -r requirements.txt
+```
+
+---
+
+# Data Preprocessing
+
+Generate the processed dataset
+
+```bash
+python -m src.pipelines.preprocess
+```
+
+This pipeline performs
+
+- Customer aggregation
+- Feature engineering
+- Missing value handling
+- Standardisation
+- One-hot encoding
+- RFM calculation
+- Customer clustering
+- Proxy target generation
+
+The processed dataset is saved to
+
+```
+data/processed/processed_data_with_target.csv
+```
+
+---
+
+# Model Training
+
+Train the models
+
+```bash
+python -m src.training.train
+```
+
+The training pipeline
+
+- Splits train/test data
+- Performs hyperparameter tuning
+- Evaluates models
+- Logs metrics to MLflow
+- Registers the best model
+
+Current models include
+
+- Logistic Regression
+- Random Forest
+
+Evaluation metrics include
+
+- Accuracy
+- Precision
+- Recall
+- F1 Score
+- ROC-AUC
+
+---
+
+# Experiment Tracking
+
+Start the MLflow UI
+
+```bash
+mlflow ui
+```
+
+Open
+
+```
+http://127.0.0.1:5000
+```
+
+MLflow records
+
+- parameters
+- metrics
+- trained models
+- model registry versions
+
+---
+
+# REST API
+
+Start the API
+
+```bash
+uvicorn src.api.main:app --reload
+```
+
+Swagger documentation
+
+```
+http://127.0.0.1:8000/docs
+```
+
+Prediction endpoint
+
+```
+POST /predict
+```
+
+Example request
+
+```json
+{
+  "num__Total_Transaction_Amount": 5000,
+  "num__Average_Transaction_Amount": 500,
+  "num__Transaction_Count": 15,
+  "num__Std_Transaction_Amount": 100,
+  "num__Max_Transaction_Amount": 1000,
+  "num__Min_Transaction_Amount": 50,
+  "num__Total_Transaction_Value": 6000,
+  "num__CountryCode": 256,
+  "num__PricingStrategy": 2,
+
+  "cat__CurrencyCode_UGX": 1,
+
+  "cat__ProviderId_ProviderId_1": 0,
+  "cat__ProviderId_ProviderId_2": 1,
+  "cat__ProviderId_ProviderId_3": 0,
+  "cat__ProviderId_ProviderId_4": 0,
+  "cat__ProviderId_ProviderId_5": 0,
+  "cat__ProviderId_ProviderId_6": 0,
+
+  "cat__ProductCategory_airtime": 0,
+  "cat__ProductCategory_data_bundles": 0,
+  "cat__ProductCategory_financial_services": 1,
+  "cat__ProductCategory_movies": 0,
+  "cat__ProductCategory_other": 0,
+  "cat__ProductCategory_ticket": 0,
+  "cat__ProductCategory_transport": 0,
+  "cat__ProductCategory_tv": 0,
+  "cat__ProductCategory_utility_bill": 0,
+
+  "cat__ChannelId_ChannelId_1": 1,
+  "cat__ChannelId_ChannelId_2": 0,
+  "cat__ChannelId_ChannelId_3": 0,
+  "cat__ChannelId_ChannelId_5": 0
+}
+```
+
+Example response
+
+```json
+{
+  "risk_probability": 0.81,
+  "risk_label": 1
+}
+```
+
+---
+
+# Testing
+
+The repository includes automated unit tests covering
+
+- Feature engineering
+- Target engineering
+- Data transformers
+- API functionality
+
+Run tests
+
+```bash
+pytest
+```
+
+Generate a coverage report
+
+```bash
+pytest --cov=src --cov-report=term-missing
+```
+
+---
+
+# Continuous Integration
+
+Every push and pull request automatically executes
+
+- dependency installation
+- code linting
+- unit testing
+
+using **GitHub Actions**.
+
+The current build status is shown at the top of this README.
+
+---
+
+# Credit Scoring Business Understanding
+
+## Basel II and the Importance of Interpretability
+
+The Basel II Accord establishes an international framework for risk-sensitive banking regulation. Under the Internal Ratings-Based (IRB) approach, financial institutions are responsible for estimating the Probability of Default (PD) of borrowers while demonstrating that their models are transparent, reliable, and well governed.
+
+This creates several important requirements for machine learning models used in credit scoring:
+
+- Models must be explainable to regulators.
+- Credit decisions must be auditable.
+- Institutions must actively manage model risk.
+- Lending decisions should provide understandable reasons for approval or rejection.
+
+## Proxy Target Engineering
+
+Traditional credit histories are unavailable for many BNPL customers. Consequently, this project constructs a behavioural proxy for default risk using customer transaction patterns.
+
+Customers are segmented using **Recency, Frequency, and Monetary (RFM)** metrics before clustering them with K-Means. The least engaged customer cluster is labelled as high risk and used as the binary target variable for supervised learning.
+
+## Model Trade-offs
+
+| Aspect | Logistic Regression | Random Forest |
+|----------|--------------------|---------------|
+| Interpretability | High | Moderate |
+| Predictive Performance | Moderate | High |
+| Regulatory Transparency | Excellent | Requires Explainability |
+| Risk of Overfitting | Low | Moderate |
+
+This project evaluates both approaches to balance predictive performance with regulatory transparency.
+
+---
+
+# Technologies
+
+- Python
+- Pandas
+- NumPy
+- Scikit-learn
+- FastAPI
+- MLflow
+- Pytest
+- GitHub Actions
+
+---
+
+# Current Status
+
+Completed
+
+- Exploratory Data Analysis
+- Feature Engineering
+- Target Engineering
+- Machine Learning Pipeline
+- MLflow Tracking
+- FastAPI Deployment
+- Automated Testing
+- Continuous Integration
+
+In Progress
+
+- Streamlit Dashboard
+- SHAP Explainability
+
+
+Addis Ababa Unive
+Software Engineering
