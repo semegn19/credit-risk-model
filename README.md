@@ -1,33 +1,301 @@
-# Credit Risk Model
+# Credit Risk Model for Buy-Now-Pay-Later (BNPL)
 
-## Credit Scoring Business Understanding
+[![CI](https://github.com/semegn19/credit-risk-model/actions/workflows/ci.yml/badge.svg)](https://github.com/semegn19/credit-risk-model/actions/workflows/ci.yml)
 
-As Bati Bank moves forward with its Buy-Now-Pay-Later (BNPL) partnership, it is critical to align our technical modeling choices with the regulatory and business landscape of credit risk. This section outlines the conceptual foundation of our approach.
+An end-to-end Machine Learning and MLOps project that predicts customer credit risk for Bati Bank's Buy-Now-Pay-Later (BNPL) product using behavioural transaction data. The project covers data engineering, feature engineering, proxy target creation, model training, experiment tracking with MLflow, REST API deployment using FastAPI, an interactive Streamlit dashboard, and SHAP explainability.
 
-### Basel II and the Imperative for Interpretability
-The **Basel II Accord** was designed to establish a regulatory capital framework sensitive to the level of risk banks assume. Under its **Internal Ratings-Based (IRB)** approach, institutions like Bati Bank must generate their own estimates of the **Probability of Default (PD)** and demonstrate their competency to regulators. 
+---
 
-This emphasis on risk measurement creates a direct requirement for **interpretable and well-documented models** because:
-*   **Regulatory Scrutiny:** CSPs (Credit Service Providers) must be able to explain the logic involved in a model's functioning and how credit scoring is incorporated into their business processes to regulatory bodies.
-*   **Model Risk Management:** Regulatory guidance (such as SR 11-7) defines model risk as the potential for adverse consequences from incorrect or misused model outputs. A model that is a "black box" makes it difficult for auditors and supervisors to validate its conceptual soundness or determine potential **cascading risks** within the financial system.
-*   **Consumer Rights:** Regulations like **Equal Credit Opportunity (Regulation B)** require lenders to provide a notice of rejection that explains exactly why an applicant was denied, necessitating a model that can provide a clear rationale behind every risk decision.
+# Project Overview
 
-### The Necessity and Risks of Proxy-Based Prediction
-In a BNPL context with an eCommerce partner, we often lack a direct historical "default" label for new users. Therefore, a **proxy variable** (surrogate data) is necessary to evaluate the **willingness and ability** of a borrower to repay. For this project, we engineer risk signals from behavioral patterns—specifically **Recency, Frequency, and Monetary (RFM)** patterns—to predict the likelihood of default.
+Traditional credit scoring relies heavily on historical lending behaviour. For many financially excluded customers, these labels are unavailable. This project addresses that challenge by constructing a behavioural proxy target from customer transaction history using RFM (Recency, Frequency and Monetary) analysis and customer clustering.
 
-While necessary for financial inclusion, **proxy-based prediction** introduces significant business risks:
-*   **Model Bias and Discrimination:** Machine learning algorithms analyzing alternative data may inadvertently detect and perpetuate historical biases or approximate protected characteristics like race or religion (e.g., through geolocation data), leading to discriminatory lending decisions.
-*   **Data Quality and Variance:** Alternative behavioral data is often unstructured and harder to process than traditional financial data. Poor data quality or high variance can compromise the model's reliability and accuracy.
-*   **Stability Under Stress:** Models trained on behavioral proxies during periods of low economic volatility may not accurately predict behavior during a significant economic downturn or financial crisis.
+The resulting model estimates the probability that a customer belongs to a high-risk behavioural segment, enabling risk assessment for BNPL lending while maintaining transparency through explainable AI techniques.
 
-### Trade-offs: Interpretable vs. High-Performance Models
-Choosing between a simple, interpretable model (e.g., **Logistic Regression**) and a high-performance model (e.g., **Gradient Boosting**) involves navigating a critical trade-off between **predictive power** and **regulatory defensibility**.
+---
 
-| Feature | Simple Model (e.g., Logistic Regression) | High-Performance Model (e.g., Gradient Boosting/XGBoost) |
-| :--- | :--- | :--- |
-| **Interpretability** | High; relationship between features and labels is modeled linearly and is easy to explain to consumers and regulators. | Low; often viewed as opaque "black boxes" that are challenging to interpret, understand, and justify. |
-| **Predictive Power** | Moderate; performs best when data fields are linearly related. | High; generally demonstrates significantly higher accuracy (AUC) and better handles complex, non-linear relationships. |
-| **Model Risk** | Easier to validate, calibrate, and audit for systemic errors. | Prone to **overfitting** and harder to monitor for unintended consequences like algorithmic bias. |
-| **Regulatory Fit** | Highly aligned with Basel II expectations for transparency and the rationale behind credit decisions. | May require additional **model-agnostic interpretability techniques** (e.g., LIME, SHAP) to be permitted in a regulated environment. |
+# Project Architecture
 
-In our regulated context, while Gradient Boosting may offer superior accuracy, its results must be balanced with the **Policy Recommendations** that decisions be explainable and fair. Bati Bank may consider a **champion-challenger approach**, using a traditional model as a baseline while exploring the added value of more complex algorithms under strict governance.
+```
+Raw Transaction Data
+        │
+        ▼
+Feature Engineering
+        │
+        ▼
+Proxy Target Engineering (RFM + KMeans)
+        │
+        ▼
+Processed Dataset
+        │
+        ▼
+Model Training
+(Logistic Regression + Random Forest)
+        │
+        ▼
+MLflow Experiment Tracking
+        │
+        ▼
+Model Registry
+        │
+        ▼
+FastAPI Prediction Service
+        │
+        ▼
+Streamlit Dashboard
+        │
+        ▼
+SHAP Explainability
+```
+
+---
+
+# Repository Structure
+
+```
+credit-risk-model/
+
+├── data/
+│   ├── raw/
+│   └── processed/
+│
+├── dashboard/
+│   ├── pages/
+│   │   ├── 1_Credit_Assessment.py
+│   │   ├── 2_Model_Performance.py
+│   │   ├── 3_Portfolio_Analytics.py
+│   │   └── 4_Model_Explainability.py
+│   ├── api_client.py
+│   ├── mlflow_utils.py
+│   ├── shap_utils.py
+│   └── app.py
+│
+├── src/
+│   ├── api/
+│   ├── config/
+│   ├── features/
+│   ├── pipelines/
+│   └── training/
+│
+├── tests/
+├── mlruns/
+├── requirements.txt
+└── README.md
+```
+
+---
+
+# Features
+
+The project includes:
+
+- Behavioural feature engineering
+- RFM-based proxy target creation
+- Customer clustering using KMeans
+- Logistic Regression baseline
+- Random Forest classifier
+- Hyperparameter tuning using GridSearchCV
+- MLflow experiment tracking and model registry
+- FastAPI prediction API
+- Streamlit dashboard
+- SHAP global and local explainability
+- Automated testing using PyTest
+- Continuous Integration using GitHub Actions
+
+---
+
+# Model Performance
+
+The best-performing model is a Random Forest classifier.
+
+| Metric | Score |
+|---------|-------|
+| Accuracy | *(Automatically tracked in MLflow)* |
+| Precision | *(Automatically tracked in MLflow)* |
+| Recall | *(Automatically tracked in MLflow)* |
+| F1-score | *(Automatically tracked in MLflow)* |
+| ROC-AUC | **0.856** |
+
+The dashboard retrieves the latest evaluation metrics directly from MLflow, ensuring that displayed values remain synchronized with the most recent registered model.
+
+---
+
+# Streamlit Dashboard
+
+The Streamlit application provides an interactive interface for model exploration and credit risk assessment.
+
+The dashboard contains four pages:
+
+### Credit Assessment
+
+- Customer data entry
+- Real-time prediction
+- Risk probability
+- High-risk / Low-risk classification
+
+---
+
+### Model Performance
+
+- Live MLflow metrics
+- ROC-AUC
+- Precision
+- Recall
+- F1-score
+- Accuracy
+
+---
+
+### Portfolio Analytics
+
+- Portfolio overview
+- Transaction summaries
+- Customer statistics
+- Risk distribution
+- Business KPIs
+
+---
+
+### Model Explainability
+
+- SHAP Summary Plot
+- SHAP Waterfall Plot
+- Global Feature Importance
+- Individual Prediction Explanation
+
+---
+
+# API
+
+The project exposes a FastAPI endpoint.
+
+### Prediction Endpoint
+
+```
+POST /predict
+```
+
+Input:
+
+```json
+{
+  "num__Total_Transaction_Amount": 5000,
+  "num__Average_Transaction_Amount": 500,
+  ...
+}
+```
+
+Output:
+
+```json
+{
+  "risk_probability": 0.27,
+  "risk_label": 0
+}
+```
+
+---
+
+# Installation
+
+Clone the repository.
+
+```bash
+git clone https://github.com/semegn19/credit-risk-model.git
+
+cd credit-risk-model
+```
+
+Install dependencies.
+
+```bash
+pip install -r requirements.txt
+```
+
+---
+
+# Run the Preprocessing Pipeline
+
+```bash
+python -m src.pipelines.preprocess
+```
+
+---
+
+# Train the Models
+
+```bash
+python -m src.training.train
+```
+
+---
+
+# Launch the FastAPI Server
+
+```bash
+uvicorn src.api.main:app --reload
+```
+
+Swagger documentation:
+
+```
+http://127.0.0.1:8000/docs
+```
+
+---
+
+# Launch the Dashboard
+
+```bash
+streamlit run dashboard/app.py
+```
+
+---
+
+# Running Tests
+
+Run all unit tests.
+
+```bash
+pytest
+```
+
+Run with coverage.
+
+```bash
+pytest --cov=src --cov-report=term-missing
+```
+
+---
+
+# Continuous Integration
+
+The repository uses GitHub Actions to automatically:
+
+- Install dependencies
+- Run Flake8 linting
+- Execute unit tests
+- Verify project integrity on every push and pull request
+
+---
+
+# Technologies Used
+
+- Python
+- Pandas
+- NumPy
+- Scikit-learn
+- MLflow
+- FastAPI
+- Streamlit
+- SHAP
+- PyTest
+- GitHub Actions
+
+---
+
+# Business Context
+
+This project was developed for Bati Bank to support Buy-Now-Pay-Later (BNPL) lending using behavioural transaction data.
+
+Because historical default labels were unavailable, a proxy target was engineered using RFM analysis and KMeans clustering. The resulting machine learning pipeline predicts behavioural credit risk while maintaining transparency through SHAP explainability, supporting responsible and interpretable lending decisions.
