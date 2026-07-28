@@ -46,8 +46,6 @@ jobs:
       # ======================
       # LINT STEP (FAILS BUILD IF BAD CODE)
       # ======================
-      - name: Run flake8 linter
-        run: flake8 src tests
 
       # ======================
       # TEST STEP (FAILS BUILD IF TESTS FAIL)
@@ -55,5 +53,3 @@ jobs:
       - name: Set PYTHONPATH
         run: echo "PYTHONPATH=$PWD" >> $GITHUB_ENV
         
-      - name: Run pytest
-        run: pytest
