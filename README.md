@@ -1,42 +1,83 @@
-# Credit Risk Probability Model using Alternative Data
+# Credit Risk Model for Buy-Now-Pay-Later (BNPL)
 
 [![CI](https://github.com/semegn19/credit-risk-model/actions/workflows/ci.yml/badge.svg)](https://github.com/semegn19/credit-risk-model/actions/workflows/ci.yml)
 
-## Project Overview
+An end-to-end Machine Learning and MLOps project that predicts customer credit risk for Bati Bank's Buy-Now-Pay-Later (BNPL) product using behavioural transaction data. The project covers data engineering, feature engineering, proxy target creation, model training, experiment tracking with MLflow, REST API deployment using FastAPI, an interactive Streamlit dashboard, and SHAP explainability.
 
-This project develops an end-to-end credit risk prediction system for **Bati Bank** to support Buy-Now-Pay-Later (BNPL) lending decisions using alternative transaction data provided by Xente. Since traditional credit histories are unavailable for many customers, the project constructs a proxy target using customer transaction behaviour through **Recency, Frequency, and Monetary (RFM)** analysis.
+---
 
-The system includes data preprocessing, feature engineering, proxy target generation, machine learning model training, experiment tracking with MLflow, a REST API built with FastAPI, automated testing, and continuous integration.
+# Project Overview
+
+Traditional credit scoring relies heavily on historical lending behaviour. For many financially excluded customers, these labels are unavailable. This project addresses that challenge by constructing a behavioural proxy target from customer transaction history using RFM (Recency, Frequency and Monetary) analysis and customer clustering.
+
+The resulting model estimates the probability that a customer belongs to a high-risk behavioural segment, enabling risk assessment for BNPL lending while maintaining transparency through explainable AI techniques.
+
+---
+
+# Project Architecture
+
+```
+Raw Transaction Data
+        │
+        ▼
+Feature Engineering
+        │
+        ▼
+Proxy Target Engineering (RFM + KMeans)
+        │
+        ▼
+Processed Dataset
+        │
+        ▼
+Model Training
+(Logistic Regression + Random Forest)
+        │
+        ▼
+MLflow Experiment Tracking
+        │
+        ▼
+Model Registry
+        │
+        ▼
+FastAPI Prediction Service
+        │
+        ▼
+Streamlit Dashboard
+        │
+        ▼
+SHAP Explainability
+```
 
 ---
 
 # Repository Structure
 
-```text
-credit-risk-model
-│
+```
+credit-risk-model/
+
 ├── data/
 │   ├── raw/
 │   └── processed/
 │
 ├── dashboard/
-│
-├── notebooks/
+│   ├── pages/
+│   │   ├── 1_Credit_Assessment.py
+│   │   ├── 2_Model_Performance.py
+│   │   ├── 3_Portfolio_Analytics.py
+│   │   └── 4_Model_Explainability.py
+│   ├── api_client.py
+│   ├── mlflow_utils.py
+│   ├── shap_utils.py
+│   └── app.py
 │
 ├── src/
 │   ├── api/
 │   ├── config/
 │   ├── features/
 │   ├── pipelines/
-│   ├── training/
-│   └── utils/
+│   └── training/
 │
 ├── tests/
-│
-├── .github/
-│   └── workflows/
-│       └── ci.yml
-│
 ├── mlruns/
 ├── requirements.txt
 └── README.md
@@ -44,64 +85,120 @@ credit-risk-model
 
 ---
 
-# Project Workflow
+# Features
 
-The project follows the complete machine learning lifecycle:
+The project includes:
 
-```
-Raw Transaction Data
-        │
-        ▼
-Exploratory Data Analysis
-        │
-        ▼
-Feature Engineering
-        │
-        ▼
-RFM Target Engineering
-        │
-        ▼
-Preprocessing Pipeline
-        │
-        ▼
-Model Training
-        │
-        ▼
-MLflow Experiment Tracking
-        │
-        ▼
-FastAPI Deployment
-        │
-        ▼
-Prediction API
-```
+- Behavioural feature engineering
+- RFM-based proxy target creation
+- Customer clustering using KMeans
+- Logistic Regression baseline
+- Random Forest classifier
+- Hyperparameter tuning using GridSearchCV
+- MLflow experiment tracking and model registry
+- FastAPI prediction API
+- Streamlit dashboard
+- SHAP global and local explainability
+- Automated testing using PyTest
+- Continuous Integration using GitHub Actions
 
 ---
 
-# Features
+# Model Performance
 
-The current implementation includes:
+The best-performing model is a Random Forest classifier.
 
-- Exploratory Data Analysis
-- Customer-level feature engineering
-- Temporal feature extraction
-- Automatic preprocessing pipeline
-- RFM-based proxy target engineering
-- Customer clustering using K-Means
-- Logistic Regression model
-- Random Forest model
-- Hyperparameter optimisation using GridSearchCV
-- MLflow experiment tracking
-- MLflow Model Registry
-- FastAPI prediction service
-- Automated unit testing
-- GitHub Actions Continuous Integration
+| Metric | Score |
+|---------|-------|
+| Accuracy | *(Automatically tracked in MLflow)* |
+| Precision | *(Automatically tracked in MLflow)* |
+| Recall | *(Automatically tracked in MLflow)* |
+| F1-score | *(Automatically tracked in MLflow)* |
+| ROC-AUC | **0.856** |
+
+The dashboard retrieves the latest evaluation metrics directly from MLflow, ensuring that displayed values remain synchronized with the most recent registered model.
+
+---
+
+# Streamlit Dashboard
+
+The Streamlit application provides an interactive interface for model exploration and credit risk assessment.
+
+The dashboard contains four pages:
+
+### Credit Assessment
+
+- Customer data entry
+- Real-time prediction
+- Risk probability
+- High-risk / Low-risk classification
+
+---
+
+### Model Performance
+
+- Live MLflow metrics
+- ROC-AUC
+- Precision
+- Recall
+- F1-score
+- Accuracy
+
+---
+
+### Portfolio Analytics
+
+- Portfolio overview
+- Transaction summaries
+- Customer statistics
+- Risk distribution
+- Business KPIs
+
+---
+
+### Model Explainability
+
+- SHAP Summary Plot
+- SHAP Waterfall Plot
+- Global Feature Importance
+- Individual Prediction Explanation
+
+---
+
+# API
+
+The project exposes a FastAPI endpoint.
+
+### Prediction Endpoint
+
+```
+POST /predict
+```
+
+Input:
+
+```json
+{
+  "num__Total_Transaction_Amount": 5000,
+  "num__Average_Transaction_Amount": 500,
+  ...
+}
+```
+
+Output:
+
+```json
+{
+  "risk_probability": 0.27,
+  "risk_label": 0
+}
+```
 
 ---
 
 # Installation
 
-Clone the repository
+Clone the repository.
 
 ```bash
 git clone https://github.com/semegn19/credit-risk-model.git
@@ -109,25 +206,7 @@ git clone https://github.com/semegn19/credit-risk-model.git
 cd credit-risk-model
 ```
 
-Create a virtual environment
-
-```bash
-python -m venv .venv
-```
-
-Windows
-
-```bash
-.venv\Scripts\activate
-```
-
-Linux / macOS
-
-```bash
-source .venv/bin/activate
-```
-
-Install dependencies
+Install dependencies.
 
 ```bash
 pip install -r requirements.txt
@@ -135,174 +214,53 @@ pip install -r requirements.txt
 
 ---
 
-# Data Preprocessing
-
-Generate the processed dataset
+# Run the Preprocessing Pipeline
 
 ```bash
 python -m src.pipelines.preprocess
 ```
 
-This pipeline performs
-
-- Customer aggregation
-- Feature engineering
-- Missing value handling
-- Standardisation
-- One-hot encoding
-- RFM calculation
-- Customer clustering
-- Proxy target generation
-
-The processed dataset is saved to
-
-```
-data/processed/processed_data_with_target.csv
-```
-
 ---
 
-# Model Training
-
-Train the models
+# Train the Models
 
 ```bash
 python -m src.training.train
 ```
 
-The training pipeline
-
-- Splits train/test data
-- Performs hyperparameter tuning
-- Evaluates models
-- Logs metrics to MLflow
-- Registers the best model
-
-Current models include
-
-- Logistic Regression
-- Random Forest
-
-Evaluation metrics include
-
-- Accuracy
-- Precision
-- Recall
-- F1 Score
-- ROC-AUC
-
 ---
 
-# Experiment Tracking
-
-Start the MLflow UI
-
-```bash
-mlflow ui
-```
-
-Open
-
-```
-http://127.0.0.1:5000
-```
-
-MLflow records
-
-- parameters
-- metrics
-- trained models
-- model registry versions
-
----
-
-# REST API
-
-Start the API
+# Launch the FastAPI Server
 
 ```bash
 uvicorn src.api.main:app --reload
 ```
 
-Swagger documentation
+Swagger documentation:
 
 ```
 http://127.0.0.1:8000/docs
 ```
 
-Prediction endpoint
+---
 
-```
-POST /predict
-```
+# Launch the Dashboard
 
-Example request
-
-```json
-{
-  "num__Total_Transaction_Amount": 5000,
-  "num__Average_Transaction_Amount": 500,
-  "num__Transaction_Count": 15,
-  "num__Std_Transaction_Amount": 100,
-  "num__Max_Transaction_Amount": 1000,
-  "num__Min_Transaction_Amount": 50,
-  "num__Total_Transaction_Value": 6000,
-  "num__CountryCode": 256,
-  "num__PricingStrategy": 2,
-
-  "cat__CurrencyCode_UGX": 1,
-
-  "cat__ProviderId_ProviderId_1": 0,
-  "cat__ProviderId_ProviderId_2": 1,
-  "cat__ProviderId_ProviderId_3": 0,
-  "cat__ProviderId_ProviderId_4": 0,
-  "cat__ProviderId_ProviderId_5": 0,
-  "cat__ProviderId_ProviderId_6": 0,
-
-  "cat__ProductCategory_airtime": 0,
-  "cat__ProductCategory_data_bundles": 0,
-  "cat__ProductCategory_financial_services": 1,
-  "cat__ProductCategory_movies": 0,
-  "cat__ProductCategory_other": 0,
-  "cat__ProductCategory_ticket": 0,
-  "cat__ProductCategory_transport": 0,
-  "cat__ProductCategory_tv": 0,
-  "cat__ProductCategory_utility_bill": 0,
-
-  "cat__ChannelId_ChannelId_1": 1,
-  "cat__ChannelId_ChannelId_2": 0,
-  "cat__ChannelId_ChannelId_3": 0,
-  "cat__ChannelId_ChannelId_5": 0
-}
-```
-
-Example response
-
-```json
-{
-  "risk_probability": 0.81,
-  "risk_label": 1
-}
+```bash
+streamlit run dashboard/app.py
 ```
 
 ---
 
-# Testing
+# Running Tests
 
-The repository includes automated unit tests covering
-
-- Feature engineering
-- Target engineering
-- Data transformers
-- API functionality
-
-Run tests
+Run all unit tests.
 
 ```bash
 pytest
 ```
 
-Generate a coverage report
+Run with coverage.
 
 ```bash
 pytest --cov=src --cov-report=term-missing
@@ -312,81 +270,32 @@ pytest --cov=src --cov-report=term-missing
 
 # Continuous Integration
 
-Every push and pull request automatically executes
+The repository uses GitHub Actions to automatically:
 
-- dependency installation
-- code linting
-- unit testing
-
-using **GitHub Actions**.
-
-The current build status is shown at the top of this README.
+- Install dependencies
+- Run Flake8 linting
+- Execute unit tests
+- Verify project integrity on every push and pull request
 
 ---
 
-# Credit Scoring Business Understanding
-
-## Basel II and the Importance of Interpretability
-
-The Basel II Accord establishes an international framework for risk-sensitive banking regulation. Under the Internal Ratings-Based (IRB) approach, financial institutions are responsible for estimating the Probability of Default (PD) of borrowers while demonstrating that their models are transparent, reliable, and well governed.
-
-This creates several important requirements for machine learning models used in credit scoring:
-
-- Models must be explainable to regulators.
-- Credit decisions must be auditable.
-- Institutions must actively manage model risk.
-- Lending decisions should provide understandable reasons for approval or rejection.
-
-## Proxy Target Engineering
-
-Traditional credit histories are unavailable for many BNPL customers. Consequently, this project constructs a behavioural proxy for default risk using customer transaction patterns.
-
-Customers are segmented using **Recency, Frequency, and Monetary (RFM)** metrics before clustering them with K-Means. The least engaged customer cluster is labelled as high risk and used as the binary target variable for supervised learning.
-
-## Model Trade-offs
-
-| Aspect | Logistic Regression | Random Forest |
-|----------|--------------------|---------------|
-| Interpretability | High | Moderate |
-| Predictive Performance | Moderate | High |
-| Regulatory Transparency | Excellent | Requires Explainability |
-| Risk of Overfitting | Low | Moderate |
-
-This project evaluates both approaches to balance predictive performance with regulatory transparency.
-
----
-
-# Technologies
+# Technologies Used
 
 - Python
 - Pandas
 - NumPy
 - Scikit-learn
-- FastAPI
 - MLflow
-- Pytest
+- FastAPI
+- Streamlit
+- SHAP
+- PyTest
 - GitHub Actions
 
 ---
 
-# Current Status
+# Business Context
 
-Completed
+This project was developed for Bati Bank to support Buy-Now-Pay-Later (BNPL) lending using behavioural transaction data.
 
-- Exploratory Data Analysis
-- Feature Engineering
-- Target Engineering
-- Machine Learning Pipeline
-- MLflow Tracking
-- FastAPI Deployment
-- Automated Testing
-- Continuous Integration
-
-In Progress
-
-- Streamlit Dashboard
-- SHAP Explainability
-
-
-Addis Ababa Unive
-Software Engineering
+Because historical default labels were unavailable, a proxy target was engineered using RFM analysis and KMeans clustering. The resulting machine learning pipeline predicts behavioural credit risk while maintaining transparency through SHAP explainability, supporting responsible and interpretable lending decisions.
