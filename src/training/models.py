@@ -43,7 +43,7 @@ def train_logistic(X_train, X_test, y_train, y_test):
         registered_model_name="CreditRiskModel"
     )
 
-    return metrics
+    return best_model, metrics
 
 
 def train_random_forest(X_train, X_test, y_train, y_test):
@@ -82,4 +82,4 @@ def train_random_forest(X_train, X_test, y_train, y_test):
         registered_model_name="CreditRiskModel"
     )
 
-    return metrics
+    return best_model, metrics
