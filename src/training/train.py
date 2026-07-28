@@ -44,7 +44,7 @@ def main():
 
     with mlflow.start_run(run_name="LogisticRegression"):
 
-        metrics = train_logistic(
+        best_model, metrics = train_logistic(
             X_train,
             X_test,
             y_train,
@@ -57,7 +57,7 @@ def main():
 
     with mlflow.start_run(run_name="RandomForest"):
 
-        metrics = train_random_forest(
+        best_model, metrics = train_random_forest(
             X_train,
             X_test,
             y_train,
