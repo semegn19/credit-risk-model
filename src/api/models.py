@@ -1,24 +1,18 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class PredictionInput(BaseModel):
 
-    # =========================
-    # NUMERICAL FEATURES
-    # =========================
-    num__Total_Transaction_Amount: float
-    num__Average_Transaction_Amount: float
-    num__Transaction_Count: float
-    num__Std_Transaction_Amount: float
-    num__Max_Transaction_Amount: float
-    num__Min_Transaction_Amount: float
-    num__Total_Transaction_Value: float
+    num__Total_Transaction_Amount: float = Field(..., ge=0)
+    num__Average_Transaction_Amount: float = Field(..., ge=0)
+    num__Transaction_Count: float = Field(..., ge=0)
+    num__Std_Transaction_Amount: float = Field(..., ge=0)
+    num__Max_Transaction_Amount: float = Field(..., ge=0)
+    num__Min_Transaction_Amount: float = Field(..., ge=0)
+    num__Total_Transaction_Value: float = Field(..., ge=0)
+
     num__CountryCode: float
     num__PricingStrategy: float
-
-    # =========================
-    # CATEGORICAL (ONE-HOT ENCODED)
-    # =========================
 
     cat__CurrencyCode_UGX: float
 
